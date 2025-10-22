@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36327.8 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TNU_AutoClass", "TNU_AutoClass.csproj", "{5CF9A8E3-C836-418C-9A64-FC6C6A756CC6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5CF9A8E3-C836-418C-9A64-FC6C6A756CC6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5CF9A8E3-C836-418C-9A64-FC6C6A756CC6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5CF9A8E3-C836-418C-9A64-FC6C6A756CC6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5CF9A8E3-C836-418C-9A64-FC6C6A756CC6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {157BDEB1-6F7D-48F6-B348-5A1BE2FDDD57}
+	EndGlobalSection
+EndGlobal
