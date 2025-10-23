@@ -124,6 +124,7 @@ namespace TNU_AutoClass
                 }
                 AddStatusText("Đã bấm hết các checkbox...");
 
+                AddStatusText("Bắt đầu truy cập các bài giảng điện tử...");
                 var sections = await page.QuerySelectorAllAsync("li.activity.label.modtype_label table tr td a");
                 Dictionary<string, string> sectionFragment = new Dictionary<string, string>();
 
@@ -144,6 +145,7 @@ namespace TNU_AutoClass
                     sectionFragment[fragment] = innerText;
                 }
 
+                var sectionIndex = 1;
                 foreach (var (key, value) in sectionFragment)
                 {
                     var dates = value.Split("- ");
@@ -154,6 +156,8 @@ namespace TNU_AutoClass
                     var today = DateTime.Now;
 
                     if (today < fromDate) continue;
+
+                    AddStatusText($"Bắt đầu kiểm tra tuần: {sectionIndex}");
 
                     var checkComplete = await page.QuerySelectorAsync($"li#{key} img[src='https://tnu.aum.edu.vn/theme/image.php/th_lambda/core/1760645114/i/completion-auto-y']");
                     if (checkComplete != null) continue;
@@ -172,6 +176,11 @@ namespace TNU_AutoClass
 
                     var popup = await popupTask;
                     await popup.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+                    await Task.Run(() => Thread.Sleep(2000));
+
+                    AddStatusText($"Bắt đầu bài giảng điện tử của tuần: {sectionIndex}");
+
+                    var slideIndex = 1;
                     while (1 == 1)
                     {
                         var frameElement = await popup.QuerySelectorAsync("iframe#scorm_object");
@@ -180,17 +189,30 @@ namespace TNU_AutoClass
                         var frame = await frameElement.ContentFrameAsync();
                         if(frame == null) break;
 
+                        var dialog = await frame.QuerySelectorAsync("div.message-box[role='alertdialog'] button:nth-of-type(2)");
+                        if(dialog != null)
+                        {
+                            await dialog.ClickAsync();
+                        }
+                        await Task.Run(() => Thread.Sleep(2000));
+
                         var button = await frame.QuerySelectorAsync("button.universal-control-panel__button.universal-control-panel__button_next.universal-control-panel__button_right-arrow:not([disabled])");
                         if (button == null)
                         {
                             await popup.CloseAsync();
+                            AddStatusText($"Đã skip toàn bộ slide!");
                             break;
                         }
 
                         await button.ClickAsync();
+                        AddStatusText($"Đã skip slide: {slideIndex}");
                         await Task.Run(() => Thread.Sleep(500));
+                        slideIndex++;
                     }
+                    await Task.Run(() => Thread.Sleep(2000));
+                    sectionIndex++;
                 }
+                AddStatusText("Đã hoàn thành việc truy cập các bài giảng điện tử!");
             }
         }
 
