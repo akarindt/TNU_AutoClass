@@ -31,8 +31,6 @@
             groupBox1 = new GroupBox();
             btnBD = new Button();
             btnClear = new Button();
-            txtGAK = new TextBox();
-            label3 = new Label();
             txtMK = new TextBox();
             txtTK = new TextBox();
             label2 = new Label();
@@ -47,8 +45,6 @@
             // 
             groupBox1.Controls.Add(btnBD);
             groupBox1.Controls.Add(btnClear);
-            groupBox1.Controls.Add(txtGAK);
-            groupBox1.Controls.Add(label3);
             groupBox1.Controls.Add(txtMK);
             groupBox1.Controls.Add(txtTK);
             groupBox1.Controls.Add(label2);
@@ -62,9 +58,9 @@
             // 
             // btnBD
             // 
-            btnBD.Location = new Point(552, 58);
+            btnBD.Location = new Point(327, 28);
             btnBD.Name = "btnBD";
-            btnBD.Size = new Size(106, 36);
+            btnBD.Size = new Size(106, 50);
             btnBD.TabIndex = 3;
             btnBD.Text = "Bắt đầu";
             btnBD.UseVisualStyleBackColor = true;
@@ -72,29 +68,12 @@
             // 
             // btnClear
             // 
-            btnClear.Location = new Point(664, 58);
+            btnClear.Location = new Point(439, 28);
             btnClear.Name = "btnClear";
-            btnClear.Size = new Size(106, 36);
+            btnClear.Size = new Size(106, 50);
             btnClear.TabIndex = 4;
             btnClear.Text = "Clear";
             btnClear.UseVisualStyleBackColor = true;
-            // 
-            // txtGAK
-            // 
-            txtGAK.Location = new Point(424, 28);
-            txtGAK.Name = "txtGAK";
-            txtGAK.Size = new Size(346, 23);
-            txtGAK.TabIndex = 2;
-            txtGAK.TextChanged += txtGAK_TextChanged;
-            // 
-            // label3
-            // 
-            label3.AutoSize = true;
-            label3.Location = new Point(330, 31);
-            label3.Name = "label3";
-            label3.Size = new Size(88, 15);
-            label3.TabIndex = 3;
-            label3.Text = "Gemini API Key";
             // 
             // txtMK
             // 
@@ -172,8 +151,6 @@
         private TextBox txtTK;
         private Label label2;
         private Label label1;
-        private TextBox txtGAK;
-        private Label label3;
         private Button btnBD;
         private Button btnClear;
         private GroupBox groupBox2;

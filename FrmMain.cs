@@ -5,6 +5,7 @@ using System.Data;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
@@ -31,7 +32,6 @@ namespace TNU_AutoClass
         {
             txtTK.Text = Utils.GetConfigValue("UserName", "");
             txtMK.Text = Utils.GetConfigValue("Password", "");
-            txtGAK.Text = Utils.GetConfigValue("GeminiAPIKey", "");
         }
 
         private void txtTK_TextChanged(object sender, EventArgs e)
@@ -42,11 +42,6 @@ namespace TNU_AutoClass
         private void txtMK_TextChanged(object sender, EventArgs e)
         {
             Utils.UpdateConfigValue("Password", txtMK.Text.Trim());
-        }
-
-        private void txtGAK_TextChanged(object sender, EventArgs e)
-        {
-            Utils.UpdateConfigValue("GeminiAPIKey", txtGAK.Text.Trim());
         }
 
         private async void btnBD_Click(object sender, EventArgs e)
@@ -152,14 +147,13 @@ namespace TNU_AutoClass
                     if (dates.Length != 2) continue;
 
                     var fromDate = DateTime.ParseExact(dates[0].Trim(), "dd/MM/yyyy", CultureInfo.InvariantCulture);
-                    var toDate = DateTime.ParseExact(dates[1].Trim(), "dd/MM/yyyy", CultureInfo.InvariantCulture);
                     var today = DateTime.Now;
 
                     if (today < fromDate) continue;
 
                     AddStatusText($"Bắt đầu kiểm tra tuần: {sectionIndex}");
 
-                    var checkComplete = await page.QuerySelectorAsync($"li#{key} img[src='https://tnu.aum.edu.vn/theme/image.php/th_lambda/core/1760645114/i/completion-auto-y']");
+                    var checkComplete = await page.QuerySelectorAsync($"li#{key} img[src*='completion-auto-y']");
                     if (checkComplete != null) continue;
 
                     var scromAnchor = await page.QuerySelectorAsync($"li#{key} .activity.scorm.modtype_scorm a.aalink");
@@ -184,13 +178,13 @@ namespace TNU_AutoClass
                     while (1 == 1)
                     {
                         var frameElement = await popup.QuerySelectorAsync("iframe#scorm_object");
-                        if(frameElement == null) break;
+                        if (frameElement == null) break;
 
                         var frame = await frameElement.ContentFrameAsync();
-                        if(frame == null) break;
+                        if (frame == null) break;
 
                         var dialog = await frame.QuerySelectorAsync("div.message-box[role='alertdialog'] button:nth-of-type(2)");
-                        if(dialog != null)
+                        if (dialog != null)
                         {
                             await dialog.ClickAsync();
                         }
@@ -213,6 +207,189 @@ namespace TNU_AutoClass
                     sectionIndex++;
                 }
                 AddStatusText("Đã hoàn thành việc truy cập các bài giảng điện tử!");
+
+                AddStatusText("Bắt đầu truy cập các bài luyện tập");
+                foreach (var (key, value) in sectionFragment)
+                {
+                    var dates = value.Split("- ");
+                    if (dates.Length != 2) continue;
+
+                    var fromDate = DateTime.ParseExact(dates[0].Trim(), "dd/MM/yyyy", CultureInfo.InvariantCulture);
+                    var today = DateTime.Now;
+
+                    if (today < fromDate) continue;
+
+                    var anchor = await page.QuerySelectorAsync($"li#{key} .activity.quiz.modtype_quiz .aalink");
+                    if (anchor == null) continue;
+
+                    var accessHide = await page.QuerySelectorAsync($"li#{key} .activity.quiz.modtype_quiz .aalink .accesshide");
+                    if (accessHide == null) continue;
+
+                    var quizUrl = await anchor.GetAttributeAsync("href");
+                    if (string.IsNullOrEmpty(quizUrl)) continue;
+
+                    await page.GotoAsync(quizUrl);
+                    await Task.Run(() => Thread.Sleep(2000));
+                    AddStatusText($"Đi đến bài luyện tập: {quizUrl}");
+                    AddStatusText($"Kiểm tra bài đã max điểm hay chưa");
+
+                    var pointCells = await page.QuerySelectorAllAsync("table.generaltable.quizattemptsummary tr .cell.c3");
+                    var breakLoop = false;
+                    foreach (var cell in pointCells)
+                    {
+                        var point = (int)double.Parse(await cell.InnerTextAsync(), CultureInfo.GetCultureInfo("vi-VN"));
+                        if (point == 10)
+                        {
+                            breakLoop = true;
+                            continue;
+                        }
+                    }
+
+                    if (breakLoop)
+                    {
+                        AddStatusText("Bài luyện tập đã max điểm, quay lại...");
+                        await page.GotoAsync(url);
+                        continue;
+                    }
+
+                    var totalCount = 1;
+                    var breakQuizLoop = false;
+                    var dictionaryQuestions = new Dictionary<string, List<string>>();
+                    while (!breakQuizLoop)
+                    {
+                        AddStatusText($"Bắt đầu làm bài kiểm tra, lần thứ: {totalCount}");
+                        await page.Locator("div.singlebutton.quizstartbuttondiv form button[type='submit']").ClickAsync();
+                        await Task.Run(() => Thread.Sleep(2000));
+
+                        await page.Locator("div#fgroup_id_buttonar fieldset input[type='submit'].btn.btn-primary").ClickAsync();
+                        await Task.Run(() => Thread.Sleep(2000));
+
+                        if (totalCount == 1)
+                        {
+                            AddStatusText("Skip lần đầu để kiểm tra câu trả lời");
+                            await page.Locator("a.endtestlink.aalink").ClickAsync();
+                            await Task.Run(() => Thread.Sleep(2000));
+
+                            await page.Locator("div.singlebutton form[action='https://tnu.aum.edu.vn/mod/quiz/processattempt.php'] button").ClickAsync();
+                            await Task.Run(() => Thread.Sleep(2000));
+
+                            await page.Locator("div.moodle-dialogue-base.moodle-dialogue-confirm input.btn.btn-primary").ClickAsync();
+                            await Task.Run(() => Thread.Sleep(2000));
+
+                            var questions = await page.QuerySelectorAllAsync("div.qtext");
+                            var answers = await page.QuerySelectorAllAsync("div.rightanswer p.cell");
+
+                            if (questions.Count == answers.Count)
+                            {
+                                for (int i = 0; i < questions.Count; i++)
+                                {
+                                    var question = (await questions[i].InnerTextAsync()).Trim();
+                                    var answer = (await answers[i].InnerTextAsync()).Trim();
+
+                                    if (dictionaryQuestions.ContainsKey(question))
+                                    {
+                                        dictionaryQuestions[question].Add(answer);
+                                    }
+                                    else
+                                    {
+                                        dictionaryQuestions[question] = new List<string> { answer };
+                                    }
+                                }
+
+                            }
+                            await page.Locator("div.othernav a.mod_quiz-next-nav").ClickAsync();
+                            await Task.Run(() => Thread.Sleep(2000));
+                        }
+                        else
+                        {
+                            AddStatusText("Bắt đầu lần thử");
+                            while (true)
+                            {
+                                var nextButton = await page.QuerySelectorAsync("form[action^='https://tnu.aum.edu.vn/mod/quiz/processattempt.php'] input[type='submit'][name='next']");
+                                var questionDivs = await page.QuerySelectorAllAsync("div[id^='question-']");
+                                foreach (var questionDiv in questionDivs)
+                                {
+                                    var questionElement = await questionDiv.QuerySelectorAsync("div.qtext");
+                                    if (questionElement == null) continue;
+
+                                    var question = (await questionElement.InnerTextAsync()).Trim();
+                                    var answerElements = await questionDiv.QuerySelectorAllAsync("div.answer div[class^='r'] p.cell");
+                                    var rand = new Random().Next(4);
+                                    for (int i = 0; i < answerElements.Count; i++)
+                                    {
+                                        var answer = (await answerElements[i].InnerTextAsync()).Trim();
+                                        await answerElements[rand].ClickAsync();
+
+                                        if (dictionaryQuestions.ContainsKey(question))
+                                        {
+                                            var item = dictionaryQuestions[question];
+                                            if (item.Contains(answer))
+                                            {
+                                                await answerElements[i].ClickAsync();
+                                                await Task.Run(() => Thread.Sleep(2000));
+                                                break;
+                                            }
+                                        } 
+                                    }
+                                    
+                                }
+
+                                if (nextButton == null)
+                                {
+                                    await page.Locator("div.singlebutton form[action='https://tnu.aum.edu.vn/mod/quiz/processattempt.php'] button").ClickAsync();
+                                    await Task.Run(() => Thread.Sleep(2000));
+
+                                    await page.Locator("div.moodle-dialogue-base.moodle-dialogue-confirm input.btn.btn-primary").ClickAsync();
+                                    await Task.Run(() => Thread.Sleep(2000));
+
+                                    AddStatusText("Đã trả lời xong");
+                                    var incorrectAnsDivs = await page.QuerySelectorAllAsync("div[id^='question-'].incorrect");
+                                    if (incorrectAnsDivs.Count() <= 0)
+                                    {
+                                        breakQuizLoop = true;
+                                        breakLoop = true;
+                                    }
+                                    else
+                                    {
+                                        foreach (var incorrectAnsDiv in incorrectAnsDivs)
+                                        {
+                                            var questionDiv = await incorrectAnsDiv.QuerySelectorAsync("div.qtext");
+                                            if (questionDiv == null) continue;
+
+                                            var rightAnsDiv = await incorrectAnsDiv.QuerySelectorAsync("div.rightanswer p.cell");
+                                            if (rightAnsDiv == null) continue;
+
+                                            var question = (await questionDiv.InnerTextAsync()).Trim();
+                                            if (string.IsNullOrEmpty(question)) continue;
+
+                                            var answer = (await rightAnsDiv.InnerTextAsync()).Trim();
+                                            if (string.IsNullOrEmpty(answer)) continue;
+
+                                            if (dictionaryQuestions.ContainsKey(question))
+                                            {
+                                                dictionaryQuestions[question].Add(answer);
+                                            }
+                                            else
+                                            {
+                                                dictionaryQuestions[question] = new List<string> { answer };
+                                            }
+                                        }
+                                    }
+
+                                    await page.Locator("div.othernav a.mod_quiz-next-nav").ClickAsync();
+                                    await Task.Run(() => Thread.Sleep(2000));
+                                    break;
+                                }
+                                await nextButton.ClickAsync();
+                                await Task.Run(() => Thread.Sleep(2000));
+                            }
+                        }
+                        totalCount++;
+                    }
+                    await page.GotoAsync(url);
+                    await Task.Run(() => Thread.Sleep(2000));
+                }
+                AddStatusText("Đã hoàn thành việc truy cập các bài luyện tập");
             }
         }
 
